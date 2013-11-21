@@ -1,5 +1,6 @@
 CC=gcc
-CFLAGS = -std=gnu11
+LINKER=gcc
+CFLAGS = -std=gnu11 -Wall
 LDFLAGS = -lm -llolie
 
 BINDIR=bin
@@ -8,14 +9,35 @@ SRCDIR=src
 GENDIR=gen
 OUT=tcalc
 
-vpath %.c $(SRCDIR)
-vpath %.c $(GENDIR)
+OUTPREFIX=
+OUTPOSTFIX=
+OBJPOSTFIX=
+SRCPOSTFIX=.c
 
-SOURCES=$(shell find ./src -name *.c)
-SOURCES_GEN=./$(GENDIR)/calc_rules.c ./$(GENDIR)/calc_tokens.c
-OBJECTS=$(SOURCES:./$(SRCDIR)/%.c=$(OBJDIR)/%.o) $(SOURCES_GEN:./$(GENDIR)/%.c=$(OBJDIR)/%.o) 
+ifeq ($(OS),Windows_NT)
+	OUTPOSTFIX=.exe
+	OBJPOSTFIX=.obj
+else
+	UNAME_S := $(shell uname -s)
+	ifneq "$(or ($(UNAME_S),Linux),($(UNAME_S),Darwin))" ""
+		OBJPOSTFIX=.o
+	endif
+endif
 
-all: $(GENDIR)/calc_rules.h $(GENDIR)/calc_tokens.c $(OUT)
+vpath %$(SRCPOSTFIX) $(SRCDIR)
+vpath %$(SRCPOSTFIX) $(GENDIR)
+
+rwildcard=$(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) $(filter $(subst *,%,$2),$d))
+
+SOURCES=$(call rwildcard,./$(SRCDIR),*$(SRCPOSTFIX))
+SOURCES_GEN=$(call rwildcard,./$(GENDIR),*$(SRCPOSTFIX))
+OBJECTS=$(SOURCES:./$(SRCDIR)/%$(SRCPOSTFIX)=$(OBJDIR)/%$(OBJPOSTFIX)) $(SOURCES_GEN:./$(GENDIR)/%$(SRCPOSTFIX)=$(OBJDIR)/%$(OBJPOSTFIX)) 
+
+all: CFLAGS+= -O3
+all: $(GENDIR)/calc_rules.h $(GENDIR)/calc_tokens$(SRCPOSTFIX) $(OUT)
+
+debug: CFLAGS+= -g -ftrapv -Wundef -Wpointer-arith -Wcast-align -Wwrite-strings -Wcast-qual -Wswitch-default -Wunreachable-code -Wfloat-equal -Wuninitialized -Wignored-qualifiers
+debug: $(GENDIR)/calc_rules.h $(GENDIR)/calc_tokens$(SRCPOSTFIX) $(OUT)
 
 clean:
 	$(RM) -rf $(GENDIR)/* $(OBJECTS) $(BINDIR)/$(OUT)
@@ -23,16 +45,16 @@ clean:
 run:
 	./$(BINDIR)/$(OUT)
 
-$(GENDIR)/calc_rules.c: $(SRCDIR)/calc_rules.y
-	bison -d -o $@ $^
+$(GENDIR)/calc_rules$(SRCPOSTFIX): $(SRCDIR)/calc_rules.y
+	$(OUTPREFIX)bison$(OUTPOSTFIX) -d -o $@ $^
 
-$(GENDIR)/calc_rules.h: $(GENDIR)/calc_rules.c
+$(GENDIR)/calc_rules.h: $(GENDIR)/calc_rules$(SRCPOSTFIX)
 
-$(GENDIR)/calc_tokens.c: $(SRCDIR)/calc_tokens.l $(GENDIR)/calc_rules.h
-	flex -o $@ $^
+$(GENDIR)/calc_tokens$(SRCPOSTFIX): $(SRCDIR)/calc_tokens.l $(GENDIR)/calc_rules.h
+	$(OUTPREFIX)flex$(OUTPOSTFIX) -o $@ $^
 
-$(OBJDIR)/%.o: %.c
+$(OBJDIR)/%$(OBJPOSTFIX): %$(SRCPOSTFIX)
 	$(CC) -I$(SRCDIR) -I$(GENDIR) $(CFLAGS) -o $@ -c $<
 
 $(OUT): $(OBJECTS)
-	$(CC) -o $(BINDIR)/$@ $^ $(LIBS) $(LDFLAGS)
+	$(LINKER) $^ -o $(BINDIR)/$(OUTPREFIX)$@$(OUTPOSTFIX) $(LDFLAGS)
