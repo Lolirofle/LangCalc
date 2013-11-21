@@ -42,6 +42,11 @@ size_t Expression_toString(struct Expression* expression,Stringp out){
 				expression->functionCall.name,
 				STRINGP(")",1)
 			);
+		case EXPRESSION_STRUCTURECALL:
+			return Stringp_sput(out,2,
+				STRINGP("Structure(",9),
+				STRINGP(")",1)
+			);
 		case EXPRESSION_UNARYOPERATION:{
 			const size_t len=Stringp_copy(expression->unaryOperation.operator,out);
 			Stringp_increment(&out,len);

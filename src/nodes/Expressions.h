@@ -3,6 +3,7 @@
 
 #include <lolie/Stringp.h>
 #include <lolie/TypeAliases.h>
+#include <lolie/LinkedList.h>
 
 struct Expression;
 
@@ -12,8 +13,7 @@ struct Expression_VariableCall{
 
 struct Expression_FunctionCall{
 	Stringcp name;
-	size_t argumentCount;
-	struct Expression* arguments[];
+	LinkedList* arguments;
 };
 
 enum Expression_ConstantCall_Kind{
@@ -33,6 +33,10 @@ struct Expression_ConstantCall{
 		unsigned int character;
 		Stringcp string;
 	};
+};
+
+struct Expression_StructureCall{
+	LinkedList* /*<struct Expression*>*/ fields;
 };
 
 struct Expression_UnaryOperation{

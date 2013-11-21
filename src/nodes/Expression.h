@@ -9,6 +9,7 @@ enum Expression_Kind{
 	EXPRESSION_CONSTANTCALL,
 	EXPRESSION_VARIABLECALL,
 	EXPRESSION_FUNCTIONCALL,
+	EXPRESSION_STRUCTURECALL,
 	EXPRESSION_UNARYOPERATION,
 	EXPRESSION_BINARYOPERATION
 };
@@ -20,6 +21,7 @@ struct Expression{
 		struct Expression_VariableCall variableCall;
 		struct Expression_FunctionCall functionCall;
 		struct Expression_ConstantCall constantCall;
+		struct Expression_StructureCall structureCall;
 		struct Expression_UnaryOperation unaryOperation;
 		struct Expression_BinaryOperation binaryOperation;
 	};

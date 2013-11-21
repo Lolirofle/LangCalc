@@ -30,10 +30,10 @@
 ")" return TOKEN_PARENTHESIS_END;
 
 [+\-] {yylval.operator = STRINGCP(yytext,yyleng);return TOKEN_BINARYOPERATOR_1;}
-[*/] {yylval.operator = STRINGCP(yytext,yyleng);return TOKEN_BINARYOPERATOR_2;}
+[*/]  {yylval.operator = STRINGCP(yytext,yyleng);return TOKEN_BINARYOPERATOR_2;}
 [\^]  {yylval.operator = STRINGCP(yytext,yyleng);return TOKEN_BINARYOPERATOR_3;}
 
-[+\-*/\^]?[\-+/*\^!#$%&<|>~:?@]+ {//Operators
+[!#$%&<|>~:?@]|([\-+/*\^!#$%&<|>~:?@][\-+/*\^!#$%&<|>~:?@]+) {//Operators
 	yylval.operator = STRINGCP(yytext,yyleng);
 	return OPERATOR;
 }
