@@ -16,3 +16,13 @@
 *.exe
 *.out
 *.app
+
+# Merge files
+*.orig
+
+bin/*
+lib/*
+obj/*
+old/*
+gen/*
+target/*
