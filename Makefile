@@ -30,14 +30,14 @@ vpath %$(SRCPOSTFIX) $(GENDIR)
 rwildcard=$(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) $(filter $(subst *,%,$2),$d))
 
 SOURCES=$(call rwildcard,./$(SRCDIR),*$(SRCPOSTFIX))
-SOURCES_GEN=$(call rwildcard,./$(GENDIR),*$(SRCPOSTFIX))
+SOURCES_GEN=./$(GENDIR)/calc_tokens$(SRCPOSTFIX) ./$(GENDIR)/calc_rules$(SRCPOSTFIX)
 OBJECTS=$(SOURCES:./$(SRCDIR)/%$(SRCPOSTFIX)=$(OBJDIR)/%$(OBJPOSTFIX)) $(SOURCES_GEN:./$(GENDIR)/%$(SRCPOSTFIX)=$(OBJDIR)/%$(OBJPOSTFIX)) 
 
 all: CFLAGS+= -O3
-all: $(GENDIR)/calc_rules.h $(GENDIR)/calc_tokens$(SRCPOSTFIX) $(OUT)
+all: generate $(OUT)
 
 debug: CFLAGS+= -g -ftrapv -Wundef -Wpointer-arith -Wcast-align -Wwrite-strings -Wcast-qual -Wswitch-default -Wunreachable-code -Wfloat-equal -Wuninitialized -Wignored-qualifiers
-debug: $(GENDIR)/calc_rules.h $(GENDIR)/calc_tokens$(SRCPOSTFIX) $(OUT)
+debug: generate $(OUT)
 
 clean:
 	$(RM) -rf $(GENDIR)/* $(OBJECTS) $(BINDIR)/$(OUT)
@@ -55,6 +55,8 @@ $(GENDIR)/calc_tokens$(SRCPOSTFIX): $(SRCDIR)/calc_tokens.l $(GENDIR)/calc_rules
 
 $(OBJDIR)/%$(OBJPOSTFIX): %$(SRCPOSTFIX)
 	$(CC) -I$(SRCDIR) -I$(GENDIR) $(CFLAGS) -o $@ -c $<
+
+generate: $(GENDIR)/calc_rules.h $(GENDIR)/calc_tokens$(SRCPOSTFIX)
 
 $(OUT): $(OBJECTS)
 	$(LINKER) $^ -o $(BINDIR)/$(OUTPREFIX)$@$(OUTPOSTFIX) $(LDFLAGS)

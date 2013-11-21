@@ -31,32 +31,38 @@
 	//Rule data
 	struct Expression* expression;
 	struct Statement* statement;
-	struct Expression_UnaryOperation unaryOperation;
-	struct Expression_BinaryOperation binaryOperation;
-	struct Statement_StructureSignature structureSignature;
+
 	struct Statement_FunctionDeclaration functionDeclaration;
 	struct Statement_VariableDeclaration variableDeclaration;
+	struct Statement_StructureDeclaration structureDeclaration;
+
+	struct Expression_UnaryOperation unaryOperation;
+	struct Expression_BinaryOperation binaryOperation;
 	struct Expression_FunctionCall functionCall;
 	struct Expression_StructureCall structureCall;
 
+	struct Statement_StructureSignature structureSignature;
+
+	//Storage for data
 	LinkedList* list;
 	char character;
 }
 
 //Tokens
 %token INTEGER IDENTIFIER OPERATOR TOKEN_BINARYOPERATOR_1 TOKEN_BINARYOPERATOR_2 TOKEN_BINARYOPERATOR_3
-%token TOKEN_STATEMENT_END TOKEN_EQUAL TOKEN_PARENTHESIS_BEGIN TOKEN_PARENTHESIS_END
+%token TOKEN_STATEMENT_END TOKEN_EQUAL TOKEN_PARENTHESIS_BEGIN TOKEN_PARENTHESIS_END TOKEN_VARIABLEDECLARATION TOKEN_FUNCTIONDECLARATION TOKEN_STRUCTUREDECLARATION
 
 //Operator precedence
 %right TOKEN_EQUAL
 %left TOKEN_BINARYOPERATOR_1
 %left TOKEN_BINARYOPERATOR_2
 %right TOKEN_BINARYOPERATOR_3
+%left OPERATOR
 
 //Types from yylval for the rules
 %type <integer> INTEGER
 %type <identifier> IDENTIFIER
-%type <operator> binaryoperator OPERATOR TOKEN_BINARYOPERATOR_1 TOKEN_BINARYOPERATOR_2 TOKEN_BINARYOPERATOR_3
+%type <operator> OPERATOR TOKEN_BINARYOPERATOR_1 TOKEN_BINARYOPERATOR_2 TOKEN_BINARYOPERATOR_3
 %type <list> structuresignaturelist structurecalllist
 
 %type <expression> expression
@@ -65,11 +71,12 @@
 %type <structureSignature> structuresignature
 %type <variableDeclaration> variabledeclaration
 %type <functionDeclaration> functiondeclaration
+%type <structureDeclaration> structuredeclaration
 %type <functionCall> functioncall
 %type <structureCall> structurecall
 //%type <statement> statement
 
-//Start in `program`
+//Start in rule `program`
 %start program
 
 //Rules
@@ -79,26 +86,52 @@ program: program statement TOKEN_STATEMENT_END ;//{ LinkedList_push(&main_contex
        | 
        ;
 
+//////////////////////////////////////////////////////////////
+//Statements
 statement: expression                        { static char outBuffer[512];Stringp_print(STRINGP(outBuffer,Expression_toString($1,STRINGP(outBuffer,512))));putchar('\n');}
          | IDENTIFIER TOKEN_EQUAL expression { /*sym[$1] = $3;$$ = malloc(sizeof(struct Statement));*$$=(struct Statement){.info={malloc(3),3}};strcpy($$->info.ptr,"var",3);*/ }
          | functiondeclaration               {  }
+         | variabledeclaration               {  }
+         | structuredeclaration              {  }
          ;
 
-variabledeclaration: "var" IDENTIFIER { $$ = (struct Statement_VariableDeclaration){.name=$2,.value=NULL}; }
+functiondeclaration: TOKEN_FUNCTIONDECLARATION IDENTIFIER structuresignature TOKEN_EQUAL expression { $$ = (struct Statement_FunctionDeclaration){.name=$2,.parameters=smalloc_type_assign(struct Statement_StructureSignature,$3),.body=$5}; }
+                   | TOKEN_FUNCTIONDECLARATION IDENTIFIER structuresignature                        { $$ = (struct Statement_FunctionDeclaration){.name=$2,.parameters=smalloc_type_assign(struct Statement_StructureSignature,$3),.body=NULL}; }
                    ;
 
-functiondeclaration: "fn" IDENTIFIER structuresignature '{' expression '}' { /*sym[$1] = $3;$$ = malloc(sizeof(struct Statement));*$$=(struct Statement){.info={malloc(3),3}};strcpy($$->info.ptr,"var",3);*/ }
+variabledeclaration: TOKEN_VARIABLEDECLARATION IDENTIFIER                        { $$ = (struct Statement_VariableDeclaration){.name=$2,.value=NULL}; }
+                   | TOKEN_VARIABLEDECLARATION IDENTIFIER TOKEN_EQUAL expression { $$ = (struct Statement_VariableDeclaration){.name=$2,.value=$4}; }
                    ;
 
-structuresignature: '(' structuresignaturelist ')' { $$ = (struct Statement_StructureSignature){$2}; }
-                  ;
+structuredeclaration: TOKEN_STRUCTUREDECLARATION IDENTIFIER TOKEN_EQUAL structuresignature { $$ = (struct Statement_StructureDeclaration){.name=$2,.structure=smalloc_type_assign(struct Statement_StructureSignature,$4)}; }
+                    | TOKEN_STRUCTUREDECLARATION IDENTIFIER                                { $$ = (struct Statement_StructureDeclaration){.name=$2,.structure=NULL}; }
+                    ;
 
-structuresignaturelist: /*Empty*/                                      { $$ = NULL; }
-                      | variabledeclaration                            { $$ = NULL;LinkedList_push(&$$,&$1); }
-                      | structuresignaturelist ',' variabledeclaration { LinkedList_push(&$1,&$3); $$ = $1; }
-                      ;
+//////////////////////////////////////////////////////////////
+//Expressions
+expression: INTEGER               { $$ = smalloc_type_assign(struct Expression,((struct Expression){.kind=EXPRESSION_CONSTANTCALL,.constantCall={.kind=EXPRESSION_CONSTANTCALL_NUMERIC,.numeric={.number=$1,.base=10}}})); }
+          | IDENTIFIER            { $$ = smalloc_type_assign(struct Expression,((struct Expression){.kind=EXPRESSION_VARIABLECALL,.variableCall={.name=$1}})); }
+          | binaryoperation       { $$ = smalloc_type_assign(struct Expression,((struct Expression){.kind=EXPRESSION_BINARYOPERATION,.binaryOperation=$1})); }
+          | unaryoperation        { $$ = smalloc_type_assign(struct Expression,((struct Expression){.kind=EXPRESSION_UNARYOPERATION,.unaryOperation=$1})); }
+          | TOKEN_PARENTHESIS_BEGIN expression TOKEN_PARENTHESIS_END { $$ = $2; }
+          | functioncall          { $$ = smalloc_type_assign(struct Expression,((struct Expression){.kind=EXPRESSION_FUNCTIONCALL,.functionCall=$1})); }
+          | structurecall         { $$ = smalloc_type_assign(struct Expression,((struct Expression){.kind=EXPRESSION_STRUCTURECALL,.structureCall=$1})); }
+          ;
 
-structurecall: '(' structurecalllist ')' { $$ = (struct Expression_StructureCall){$2}; }
+binaryoperation: expression TOKEN_BINARYOPERATOR_1 expression { $$ = (struct Expression_BinaryOperation){$2,$1,$3}; }
+               | expression TOKEN_BINARYOPERATOR_2 expression { $$ = (struct Expression_BinaryOperation){$2,$1,$3}; }
+               | expression TOKEN_BINARYOPERATOR_3 expression { $$ = (struct Expression_BinaryOperation){$2,$1,$3}; }
+               | expression OPERATOR expression               { $$ = (struct Expression_BinaryOperation){$2,$1,$3}; }
+               | expression expression          { static char multiplicationChar='*';$$ = (struct Expression_BinaryOperation){STRINGCP(&multiplicationChar,1),$1,$2}; }
+               ;
+
+unaryoperation: OPERATOR expression { $$ = (struct Expression_UnaryOperation){$1,$2}; }
+              ;
+
+functioncall: IDENTIFIER structurecall { $$ = (struct Expression_FunctionCall){.name=$1,.arguments=$2.fields}; }
+            ;
+
+structurecall: TOKEN_PARENTHESIS_BEGIN structurecalllist TOKEN_PARENTHESIS_END { $$ = (struct Expression_StructureCall){$2}; }
              ;
 
 structurecalllist: /*Empty*/                        { $$ = NULL; }
@@ -106,29 +139,15 @@ structurecalllist: /*Empty*/                        { $$ = NULL; }
                  | structurecalllist ',' expression { LinkedList_push(&$1,$3); $$ = $1; }
                  ;
 
-functioncall: IDENTIFIER structurecall { $$ = (struct Expression_FunctionCall){.name=$1,.arguments=$2.fields}; }
-            ;
+//////////////////////////////////////////////////////////////
+//Other
+structuresignature: TOKEN_PARENTHESIS_BEGIN structuresignaturelist TOKEN_PARENTHESIS_END { $$ = (struct Statement_StructureSignature){$2}; }
+                  ;
 
-expression: INTEGER               { $$ = smalloc_type_assign(struct Expression,((struct Expression){.type=NULL,.kind=EXPRESSION_CONSTANTCALL,.constantCall={.kind=EXPRESSION_CONSTANTCALL_NUMERIC,.numeric={.number=$1,.base=10}}})); }
-          | IDENTIFIER            { $$ = smalloc_type_assign(struct Expression,((struct Expression){.type=NULL,.kind=EXPRESSION_VARIABLECALL,.variableCall={.name=$1}})); }
-          | binaryoperation       { $$ = smalloc_type_assign(struct Expression,((struct Expression){.type=NULL,.kind=EXPRESSION_BINARYOPERATION,.binaryOperation=$1})); }
-          | unaryoperation        { $$ = smalloc_type_assign(struct Expression,((struct Expression){.type=NULL,.kind=EXPRESSION_UNARYOPERATION,.unaryOperation=$1})); }
-          | TOKEN_PARENTHESIS_BEGIN expression TOKEN_PARENTHESIS_END { $$ = $2; }
-          | functioncall          { $$ = smalloc_type_assign(struct Expression,((struct Expression){.type=NULL,.kind=EXPRESSION_FUNCTIONCALL,.functionCall=$1})); }
-          ;
-
-binaryoperation: expression binaryoperator expression { $$ = (struct Expression_BinaryOperation){$2,$1,$3}; }
-               | expression expression          { static char multiplicationChar='*';$$ = (struct Expression_BinaryOperation){STRINGCP(&multiplicationChar,1),$1,$2}; }
-               ;
-
-binaryoperator: TOKEN_BINARYOPERATOR_1 {$$ = $1;}
-              | TOKEN_BINARYOPERATOR_2 {$$ = $1;}
-              | TOKEN_BINARYOPERATOR_3 {$$ = $1;}
-              | OPERATOR {$$ = $1;}
-              ;
-
-unaryoperation: OPERATOR expression { $$ = (struct Expression_UnaryOperation){$1,$2}; }
-              ;
+structuresignaturelist: /*Empty*/                                      { $$ = NULL; }
+                      | variabledeclaration                            { $$ = NULL;LinkedList_push(&$$,smalloc_type_assign(struct Statement_VariableDeclaration,$1)); }
+                      | structuresignaturelist ',' variabledeclaration { LinkedList_push(&$1,smalloc_type_assign(struct Statement_VariableDeclaration,$3)); $$ = $1; }
+                      ;
 
 %%
 

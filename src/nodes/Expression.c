@@ -4,8 +4,9 @@
 #include <string.h>
 #include <lolie/Math.h>
 #include <lolie/TypeAliases.h>
+#include <lolie/Memory.h>
 
-size_t Expression_toString(struct Expression* expression,Stringp out){
+size_t Expression_toString(const struct Expression* expression,Stringp out){
 	switch(expression->kind){
 		case EXPRESSION_CONSTANTCALL:
 			switch(expression->constantCall.kind){
@@ -72,4 +73,46 @@ size_t Expression_toString(struct Expression* expression,Stringp out){
 		}
 	}
 	return 0;
+}
+
+struct Expression* Expression_simplify(const struct Expression* expression,struct Expression* out){//TODO: Implement function correctly in constant call, everything should simplify to Expression_CompileTime_Value
+	switch(expression->kind){
+		case EXPRESSION_CONSTANTCALL:
+			memcpy(out,expression,sizeof(struct Expression));
+			break;
+		case EXPRESSION_VARIABLECALL://TODO: Implement when contexts and variable declarations are implemented
+			//Expression_evaluate(context->getVariable()->value,out);
+			break;
+		case EXPRESSION_FUNCTIONCALL:
+			break;//TODO: Implement when functions are implemented
+		case EXPRESSION_STRUCTURECALL:
+
+			break;
+		case EXPRESSION_UNARYOPERATION:{
+			//TODO: Reimplement as function lookups when functions are implemented, and types, and compiler
+			/*struct Expression* value
+			Expression_evaluate(expression->unaryOperation.value,value);
+			if(value->kind == EXPRESSION_CONSTANTCALL && value->constantCall.kind == EXPRESSION_CONSTANTCALL_NUMERIC){
+				if(Memory_equals("-",expression->unaryOperation.name.ptr,1))
+
+			}*/
+			out->kind = EXPRESSION_UNARYOPERATION;
+			out->unaryOperation.value=smalloc(sizeof(struct Expression));
+			Expression_evaluate(expression->unaryOperation.value,out->unaryOperation.value);
+		}	break;
+		case EXPRESSION_BINARYOPERATION:{
+			//TODO: Same as unary operation todo
+			out->kind = EXPRESSION_BINARYOPERATION;
+			out->binaryOperation.lhs=smalloc(sizeof(struct Expression));
+			out->binaryOperation.rhs=smalloc(sizeof(struct Expression));
+
+			Expression_evaluate(expression->binaryOperation.lhs,out->binaryOperation.lhs);
+			Expression_evaluate(expression->binaryOperation.rhs,out->binaryOperation.rhs);
+		}	break;
+	}
+	return out;
+}
+
+struct Type* Expression_getType(const struct Expression* expression,struct Context* context){
+	return NULL;//TODO: Implement later on when compiling is implemented
 }

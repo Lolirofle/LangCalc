@@ -5,7 +5,10 @@
 	void yyerror(char*);
 
 	#define TOKEN(t) (yylval.token = t)
+	#define YY_NO_INPUT
 %}
+
+%option nounput
 
 %%
 
@@ -14,6 +17,10 @@
 [;\n] {
 	return TOKEN(TOKEN_STATEMENT_END);
 }
+
+"var"    return TOKEN_VARIABLEDECLARATION;
+"fn"     return TOKEN_FUNCTIONDECLARATION;
+"struct" return TOKEN_STRUCTUREDECLARATION;
 
 [A-Za-z][A-Za-z0-9]* {//String identifier
 	yylval.identifier = STRINGCP(yytext,yyleng);
