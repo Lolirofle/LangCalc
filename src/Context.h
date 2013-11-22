@@ -11,7 +11,6 @@ struct Context{
 	LinkedList* types;
 	LinkedList* functions;
 	LinkedList* variables;
-	LinkedList* statements;
 };
 
 const struct Type* Context_getType(const struct Context* context,Stringcp name);

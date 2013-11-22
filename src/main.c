@@ -17,7 +17,6 @@ int main(void){
 		.types=NULL,
 		.variables=NULL,
 		.functions=NULL,
-		.statements=NULL
 	};
 
 	{//Initialize types

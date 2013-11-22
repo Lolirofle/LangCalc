@@ -11,7 +11,7 @@ size_t Expression_toString(const struct Expression* expression,Stringp out){
 		case EXPRESSION_CONSTANTCALL:
 			switch(expression->constantCall.kind){
 				case EXPRESSION_CONSTANTCALL_NUMERIC:
-					return Stringp_sput(out,3,
+					return Stringp_vcopy(out,3,
 						STRINGP("Number(",7),
 						expression->constantCall.numeric.number,
 						STRINGP(")",1)
@@ -24,7 +24,7 @@ size_t Expression_toString(const struct Expression* expression,Stringp out){
 					return len;
 				}
 				case EXPRESSION_CONSTANTCALL_STRING:
-					return Stringp_sput(out,3,
+					return Stringp_vcopy(out,3,
 						STRINGP("String(",7),
 						expression->constantCall.string,
 						STRINGP(")",1)
@@ -32,19 +32,19 @@ size_t Expression_toString(const struct Expression* expression,Stringp out){
 			}
 			break;
 		case EXPRESSION_VARIABLECALL:
-			return Stringp_sput(out,3,
+			return Stringp_vcopy(out,3,
 				STRINGP("Variable(",9),
 				expression->variableCall.name,
 				STRINGP(")",1)
 			);
 		case EXPRESSION_FUNCTIONCALL:
-			return Stringp_sput(out,3,
+			return Stringp_vcopy(out,3,
 				STRINGP("Function(",9),
 				expression->functionCall.name,
 				STRINGP(")",1)
 			);
 		case EXPRESSION_STRUCTURECALL:
-			return Stringp_sput(out,2,
+			return Stringp_vcopy(out,2,
 				STRINGP("Structure(",9),
 				STRINGP(")",1)
 			);
@@ -71,6 +71,24 @@ size_t Expression_toString(const struct Expression* expression,Stringp out){
 
 			return originalLength-out.length;
 		}
+		case EXPRESSION_BLOCK:{
+			const size_t originalLength=out.length;
+
+			Stringp_copy(STRINGCP("{",1),out);
+			Stringp_increment(&out,1);
+
+			LinkedList_forEach(expression->block.statements,expr){
+				Stringp_increment(&out,Expression_toString((struct Expression*)expr,out));
+
+				Stringp_copy(STRINGCP("; ",2),out);
+				Stringp_increment(&out,2);
+			}
+
+			Stringp_copy(STRINGCP("}",1),out);
+			Stringp_increment(&out,1);
+
+			return originalLength-out.length;
+		}
 	}
 	return 0;
 }
@@ -81,7 +99,7 @@ struct Expression* Expression_simplify(const struct Expression* expression,struc
 			memcpy(out,expression,sizeof(struct Expression));
 			break;
 		case EXPRESSION_VARIABLECALL://TODO: Implement when contexts and variable declarations are implemented
-			//Expression_evaluate(context->getVariable()->value,out);
+			//Expression_simplify(context->getVariable()->value,out);
 			break;
 		case EXPRESSION_FUNCTIONCALL:
 			break;//TODO: Implement when functions are implemented
@@ -91,14 +109,14 @@ struct Expression* Expression_simplify(const struct Expression* expression,struc
 		case EXPRESSION_UNARYOPERATION:{
 			//TODO: Reimplement as function lookups when functions are implemented, and types, and compiler
 			/*struct Expression* value
-			Expression_evaluate(expression->unaryOperation.value,value);
+			Expression_simplify(expression->unaryOperation.value,value);
 			if(value->kind == EXPRESSION_CONSTANTCALL && value->constantCall.kind == EXPRESSION_CONSTANTCALL_NUMERIC){
 				if(Memory_equals("-",expression->unaryOperation.name.ptr,1))
 
 			}*/
 			out->kind = EXPRESSION_UNARYOPERATION;
 			out->unaryOperation.value=smalloc(sizeof(struct Expression));
-			Expression_evaluate(expression->unaryOperation.value,out->unaryOperation.value);
+			Expression_simplify(expression->unaryOperation.value,out->unaryOperation.value);
 		}	break;
 		case EXPRESSION_BINARYOPERATION:{
 			//TODO: Same as unary operation todo
@@ -106,8 +124,8 @@ struct Expression* Expression_simplify(const struct Expression* expression,struc
 			out->binaryOperation.lhs=smalloc(sizeof(struct Expression));
 			out->binaryOperation.rhs=smalloc(sizeof(struct Expression));
 
-			Expression_evaluate(expression->binaryOperation.lhs,out->binaryOperation.lhs);
-			Expression_evaluate(expression->binaryOperation.rhs,out->binaryOperation.rhs);
+			Expression_simplify(expression->binaryOperation.lhs,out->binaryOperation.lhs);
+			Expression_simplify(expression->binaryOperation.rhs,out->binaryOperation.rhs);
 		}	break;
 	}
 	return out;

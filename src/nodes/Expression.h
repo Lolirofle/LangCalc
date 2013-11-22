@@ -13,6 +13,7 @@ enum Expression_Kind{
 	EXPRESSION_STRUCTURECALL,
 	EXPRESSION_UNARYOPERATION,
 	EXPRESSION_BINARYOPERATION,
+	EXPRESSION_BLOCK,
 
 	EXPRESSION_COMPILETIME_VALUE
 };
@@ -26,6 +27,7 @@ struct Expression{
 		struct Expression_StructureCall structureCall;
 		struct Expression_UnaryOperation unaryOperation;
 		struct Expression_BinaryOperation binaryOperation;
+		struct Expression_Block block;
 
 		struct{
 			struct Type* type;

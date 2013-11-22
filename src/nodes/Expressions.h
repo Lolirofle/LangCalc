@@ -4,6 +4,7 @@
 #include <lolie/Stringp.h>
 #include <lolie/TypeAliases.h>
 #include <lolie/LinkedList.h>
+#include "Context.h"
 
 struct Expression;
 
@@ -48,6 +49,11 @@ struct Expression_BinaryOperation{
 	Stringcp operator;
 	struct Expression* lhs;
 	struct Expression* rhs;
+};
+
+struct Expression_Block{
+	LinkedList* /*<struct Statement*>*/ statements;
+	struct Context context;
 };
 
 #endif

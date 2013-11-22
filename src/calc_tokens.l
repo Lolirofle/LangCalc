@@ -35,6 +35,8 @@
 "=" return TOKEN_EQUAL;
 "(" return TOKEN_PARENTHESIS_BEGIN;
 ")" return TOKEN_PARENTHESIS_END;
+"{" return TOKEN_BLOCK_BEGIN;
+"}" return TOKEN_BLOCK_END;
 
 [+\-] {yylval.operator = STRINGCP(yytext,yyleng);return TOKEN_BINARYOPERATOR_1;}
 [*/]  {yylval.operator = STRINGCP(yytext,yyleng);return TOKEN_BINARYOPERATOR_2;}
