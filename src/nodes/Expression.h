@@ -31,13 +31,14 @@ struct Expression{
 
 		struct{
 			struct Type* type;
-			byte* data;
+			void* data;
 		}compileTime_value;
 	};
 };
 
 size_t Expression_toString(const struct Expression* expression,Stringp out);
-struct Expression* Expression_simplify(const struct Expression* expression,struct Expression* out);
+bool Expression_evaluate(struct Expression* expression,const struct Context* context);
 struct Type* Expression_getType(const struct Expression* expression,struct Context* context);
+void Expression_free(struct Expression** expression);
 
 #endif

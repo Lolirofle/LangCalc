@@ -89,47 +89,114 @@ size_t Expression_toString(const struct Expression* expression,Stringp out){
 
 			return originalLength-out.length;
 		}
+
+		case EXPRESSION_COMPILETIME_VALUE:
+			return long2str(*(long*)expression->compileTime_value.data,out);
 	}
 	return 0;
 }
 
-struct Expression* Expression_simplify(const struct Expression* expression,struct Expression* out){//TODO: Implement function correctly in constant call, everything should simplify to Expression_CompileTime_Value
+bool Expression_evaluate(struct Expression* expression,const struct Context* context){//TODO: Implement function correctly in constant call, everything should simplify to Expression_CompileTime_Value
+	if(expression == NULL)
+		return false;
+
 	switch(expression->kind){
+		case EXPRESSION_COMPILETIME_VALUE:
+			return true;
 		case EXPRESSION_CONSTANTCALL:
-			memcpy(out,expression,sizeof(struct Expression));
-			break;
+			expression->kind = EXPRESSION_COMPILETIME_VALUE;
+			switch(expression->constantCall.kind){
+				case EXPRESSION_CONSTANTCALL_NUMERIC:
+					expression->compileTime_value.data = smalloc_type_assign(long,decStr2int(expression->constantCall.numeric.number.ptr,expression->constantCall.numeric.number.length));
+					return true;
+			}
+			return false;
 		case EXPRESSION_VARIABLECALL://TODO: Implement when contexts and variable declarations are implemented
-			//Expression_simplify(context->getVariable()->value,out);
-			break;
+			//Expression_evaluate(context->getVariable()->value,out);
+			return true;
 		case EXPRESSION_FUNCTIONCALL:
-			break;//TODO: Implement when functions are implemented
+			return true;//TODO: Implement when functions are implemented
 		case EXPRESSION_STRUCTURECALL:
 
-			break;
-		case EXPRESSION_UNARYOPERATION:{
+			return true;
+		case EXPRESSION_UNARYOPERATION:
 			//TODO: Reimplement as function lookups when functions are implemented, and types, and compiler
-			/*struct Expression* value
-			Expression_simplify(expression->unaryOperation.value,value);
-			if(value->kind == EXPRESSION_CONSTANTCALL && value->constantCall.kind == EXPRESSION_CONSTANTCALL_NUMERIC){
-				if(Memory_equals("-",expression->unaryOperation.name.ptr,1))
+			Expression_evaluate(expression->unaryOperation.value,context);
 
-			}*/
-			out->kind = EXPRESSION_UNARYOPERATION;
-			out->unaryOperation.value=smalloc(sizeof(struct Expression));
-			Expression_simplify(expression->unaryOperation.value,out->unaryOperation.value);
-		}	break;
+			if(expression->unaryOperation.value->kind == EXPRESSION_COMPILETIME_VALUE){
+				if(expression->unaryOperation.operator.length==1){
+					#define expr (*(long*)expression->unaryOperation.value->compileTime_value.data)
+					#define Expression_CompileTime_setValue(expr) expression->compileTime_value.data = smalloc_type_assign(long,(expr))
+					#define Expression_CompileTime_isOp(str,len) Memory_equals(str,expression->unaryOperation.operator.ptr,len)
+
+					if(Expression_CompileTime_isOp("-",1))
+						Expression_CompileTime_setValue(-expr);
+					else
+						return false;
+					expression->kind = EXPRESSION_COMPILETIME_VALUE;
+
+					#undef expr
+					#undef Expression_CompileTime_setValue
+					#undef Expression_CompileTime_isOp
+				}
+			}
+			return true;
 		case EXPRESSION_BINARYOPERATION:{
 			//TODO: Same as unary operation todo
-			out->kind = EXPRESSION_BINARYOPERATION;
-			out->binaryOperation.lhs=smalloc(sizeof(struct Expression));
-			out->binaryOperation.rhs=smalloc(sizeof(struct Expression));
+			Expression_evaluate(expression->binaryOperation.lhs,context);
+			Expression_evaluate(expression->binaryOperation.rhs,context);
 
-			Expression_simplify(expression->binaryOperation.lhs,out->binaryOperation.lhs);
-			Expression_simplify(expression->binaryOperation.rhs,out->binaryOperation.rhs);
-		}	break;
+			if(expression->binaryOperation.lhs->kind == EXPRESSION_COMPILETIME_VALUE &&
+			   expression->binaryOperation.rhs->kind == EXPRESSION_COMPILETIME_VALUE){
+				if(expression->binaryOperation.operator.length==1){
+					#define lhsExpr (*(long*)expression->binaryOperation.lhs->compileTime_value.data)
+					#define rhsExpr (*(long*)expression->binaryOperation.rhs->compileTime_value.data)
+					#define Expression_CompileTime_setValue(expr) expression->compileTime_value.data = smalloc_type_assign(long,(expr))
+					#define Expression_CompileTime_isOp(str,len) Memory_equals(str,expression->binaryOperation.operator.ptr,len)
+
+					if(Expression_CompileTime_isOp("+",1))
+						Expression_CompileTime_setValue(lhsExpr+rhsExpr);
+					else if(Expression_CompileTime_isOp("-",1))
+						Expression_CompileTime_setValue(lhsExpr-rhsExpr);
+					else if(Expression_CompileTime_isOp("*",1))
+						Expression_CompileTime_setValue(lhsExpr*rhsExpr);
+					else if(Expression_CompileTime_isOp("/",1))
+						Expression_CompileTime_setValue(lhsExpr/rhsExpr);
+					else
+						return false;
+					expression->kind = EXPRESSION_COMPILETIME_VALUE;
+
+					#undef lhsExpr
+					#undef rhsExpr
+					#undef Expression_CompileTime_setValue
+					#undef Expression_CompileTime_isOp
+				}
+			}
+		}	return true;
 	}
-	return out;
+	return false;
 }
+
+void Expression_free(struct Expression** expression){
+	switch((*expression)->kind){
+		case EXPRESSION_UNARYOPERATION:
+			Expression_free(&(*expression)->unaryOperation.value);
+			break;
+		case EXPRESSION_BINARYOPERATION:
+			Expression_free(&(*expression)->binaryOperation.lhs);
+			Expression_free(&(*expression)->binaryOperation.rhs);
+			break;
+		case EXPRESSION_BLOCK:
+			break;
+		case EXPRESSION_COMPILETIME_VALUE:
+			sfree(&(*expression)->compileTime_value.data);
+			break;
+		default:
+			break;
+	}
+	sfree((void**)expression);
+}
+
 
 struct Type* Expression_getType(const struct Expression* expression,struct Context* context){
 	return NULL;//TODO: Implement later on when compiling is implemented

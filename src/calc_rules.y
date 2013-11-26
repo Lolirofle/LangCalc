@@ -59,11 +59,12 @@
 %left TOKEN_BINARYOPERATOR_2
 %right TOKEN_BINARYOPERATOR_3
 %left OPERATOR
+%left UNARYOPERATOR
 
 //Types from yylval for the rules
 %type <integer> INTEGER
 %type <identifier> IDENTIFIER
-%type <operator> OPERATOR TOKEN_BINARYOPERATOR_1 TOKEN_BINARYOPERATOR_2 TOKEN_BINARYOPERATOR_3
+%type <operator> OPERATOR TOKEN_BINARYOPERATOR_1 TOKEN_BINARYOPERATOR_2 TOKEN_BINARYOPERATOR_3 operator
 %type <list> structuresignaturelist structurecalllist statementlist
 
 %type <expression> expression
@@ -90,7 +91,7 @@ program: program statement TOKEN_STATEMENT_END ;//{ LinkedList_push(&main_contex
 
 //////////////////////////////////////////////////////////////
 //Statements
-statement: expression                        { $$ = smalloc_type_assign(struct Statement,((struct Statement){.kind=STATEMENT_EXPRESSION,.expression=*$1}));static char outBuffer[512];Stringp_print(STRINGP(outBuffer,Expression_toString($1,STRINGP(outBuffer,512))));putchar('\n');}
+statement: expression                        { $$ = smalloc_type_assign(struct Statement,((struct Statement){.kind=STATEMENT_EXPRESSION,.expression=*$1}));static char outBuffer[512];Expression_evaluate($1,NULL);Stringp_print(STRINGP(outBuffer,Expression_toString($1,STRINGP(outBuffer,512))));putchar('\n');Expression_free(&$1);}
          | IDENTIFIER TOKEN_EQUAL expression { $$ = smalloc_type_assign(struct Statement,((struct Statement){.kind=STATEMENT_VARIABLEASSIGNMENT,.variableAssignment={.name=$1,.value=$3}})); }
          | functiondeclaration               { $$ = smalloc_type_assign(struct Statement,((struct Statement){.kind=STATEMENT_FUNCTIONDECLARATION,.functionDeclaration=$1})); }
          | variabledeclaration               { $$ = smalloc_type_assign(struct Statement,((struct Statement){.kind=STATEMENT_FUNCTIONDECLARATION,.variableDeclaration=$1})); }
@@ -113,22 +114,27 @@ structuredeclaration: TOKEN_STRUCTUREDECLARATION IDENTIFIER TOKEN_EQUAL structur
 //Expressions
 expression: INTEGER               { $$ = smalloc_type_assign(struct Expression,((struct Expression){.kind=EXPRESSION_CONSTANTCALL,.constantCall={.kind=EXPRESSION_CONSTANTCALL_NUMERIC,.numeric={.number=$1,.base=10}}})); }
           | IDENTIFIER            { $$ = smalloc_type_assign(struct Expression,((struct Expression){.kind=EXPRESSION_VARIABLECALL,.variableCall={.name=$1}})); }
-          | binaryoperation       { $$ = smalloc_type_assign(struct Expression,((struct Expression){.kind=EXPRESSION_BINARYOPERATION,.binaryOperation=$1})); }
-          | unaryoperation        { $$ = smalloc_type_assign(struct Expression,((struct Expression){.kind=EXPRESSION_UNARYOPERATION,.unaryOperation=$1})); }
           | TOKEN_PARENTHESIS_BEGIN expression TOKEN_PARENTHESIS_END { $$ = $2; }
+          | unaryoperation        { $$ = smalloc_type_assign(struct Expression,((struct Expression){.kind=EXPRESSION_UNARYOPERATION,.unaryOperation=$1})); }
+          | binaryoperation       { $$ = smalloc_type_assign(struct Expression,((struct Expression){.kind=EXPRESSION_BINARYOPERATION,.binaryOperation=$1})); }
           | functioncall          { $$ = smalloc_type_assign(struct Expression,((struct Expression){.kind=EXPRESSION_FUNCTIONCALL,.functionCall=$1})); }
           | structurecall         { $$ = smalloc_type_assign(struct Expression,((struct Expression){.kind=EXPRESSION_STRUCTURECALL,.structureCall=$1})); }
           | block                 { $$ = smalloc_type_assign(struct Expression,((struct Expression){.kind=EXPRESSION_BLOCK,.block=$1})); }
           ;
 
+operator: TOKEN_BINARYOPERATOR_1 { $$ = $1; }
+        | TOKEN_BINARYOPERATOR_2 { $$ = $1; }
+        | TOKEN_BINARYOPERATOR_3 { $$ = $1; }
+        | OPERATOR               { $$ = $1; }
+        ;
+
 binaryoperation: expression TOKEN_BINARYOPERATOR_1 expression { $$ = (struct Expression_BinaryOperation){$2,$1,$3}; }
                | expression TOKEN_BINARYOPERATOR_2 expression { $$ = (struct Expression_BinaryOperation){$2,$1,$3}; }
                | expression TOKEN_BINARYOPERATOR_3 expression { $$ = (struct Expression_BinaryOperation){$2,$1,$3}; }
                | expression OPERATOR expression               { $$ = (struct Expression_BinaryOperation){$2,$1,$3}; }
-               | expression expression          { static char multiplicationChar='*';$$ = (struct Expression_BinaryOperation){STRINGCP(&multiplicationChar,1),$1,$2}; }
                ;
 
-unaryoperation: OPERATOR expression { $$ = (struct Expression_UnaryOperation){$1,$2}; }
+unaryoperation: operator expression %prec UNARYOPERATOR { $$ = (struct Expression_UnaryOperation){$1,$2}; }
               ;
 
 functioncall: IDENTIFIER structurecall { $$ = (struct Expression_FunctionCall){.name=$1,.arguments=$2.fields}; }
